@@ -48,7 +48,7 @@ ch_options.add_argument("incognito")
 
 def get_state_context(host):
     uri = 'nf/auth/getAuthenticationRequirements.do'
-    url = '%s%s' % (host, uri)
+    url = f'{host}{uri}'
 
     r = requests.post(url, headers=HEADERS, verify=False)
     st_ctx = None
@@ -61,7 +61,7 @@ def get_state_context(host):
 
 def authentication(host, user, pwd, token, st_ctx):
     uri = 'nf/auth/doAuthentication.do'
-    url = '%s%s' % (host, uri)
+    url = f'{host}{uri}'
 
     data = {
             'login': user,
@@ -73,7 +73,7 @@ def authentication(host, user, pwd, token, st_ctx):
             }
 
     r = requests.post(url, data=data, headers=HEADERS, verify=False)
- 
+
     nsc_cookie = None
     try:
         nsc_cookie = r.cookies.get_dict().get('NSC_AAAC')
@@ -85,7 +85,7 @@ def authentication(host, user, pwd, token, st_ctx):
 
 def set_client(host, st_ctx, nsc_cookie):
     uri = 'p/u/setClient.do'
-    url = '%s%s' % (host, uri)
+    url = f'{host}{uri}'
 
     data = {
             'nsg-setclient': 'wica',
@@ -107,7 +107,7 @@ def set_client(host, st_ctx, nsc_cookie):
     if ruri.startswith('/'):
         ruri = ruri[1:]
 
-    ruri = '%s%s' % (host, ruri)
+    ruri = f'{host}{ruri}'
     return ruri
 
 
@@ -119,7 +119,7 @@ def autologin(host, usr, pwd, otp):
         return None
 
     print(colored("[*] StateContext retrieved: ", 'yellow', attrs=['bold']), end='')
-    print("[%s]" % (st_ctx))
+    print(f"[{st_ctx}]")
 
     nsc_cookie = authentication(host, usr, pwd, otp, st_ctx)
 
@@ -128,7 +128,7 @@ def autologin(host, usr, pwd, otp):
         return None
 
     print(colored("[*] NSC_AAAC Cookie retrieved: ", 'yellow', attrs=['bold']), end='')
-    print("[%s]" % (nsc_cookie))
+    print(f"[{nsc_cookie}]")
 
     print(colored("[*] Looking for redirect URI", 'yellow', attrs=['bold']))
 
@@ -161,7 +161,7 @@ def selenium_login(cookie):
     time.sleep(1)
     driver.add_cookie({"name" : "NSC_AAAC", "value" : cookie})
     time.sleep(1)
-    driver.get(host+"Citrix/InternalWeb/")
+    driver.get(f"{host}Citrix/InternalWeb/")
     try: # select "use professional account" if present
         acc = WebDriverWait(driver, 2).until(ec.visibility_of_element_located((By.ID, "protocolhandler-welcome-installButton")))
         acc.click()
@@ -176,8 +176,10 @@ def selenium_login(cookie):
 if __name__ == '__main__':
 
     if len(sys.argv) != 5:
-        print("Usage: %s <host> <username> <password> <otp>" % (sys.argv[0]))
-        print("Example: %s https://citrix.domain.com/ UserName Rand0mPwd123* 123456)" % (sys.argv[0]))
+        print(f"Usage: {sys.argv[0]} <host> <username> <password> <otp>")
+        print(
+            f"Example: {sys.argv[0]} https://citrix.domain.com/ UserName Rand0mPwd123* 123456)"
+        )
         quit()
 
     host = sys.argv[1]
@@ -189,8 +191,7 @@ if __name__ == '__main__':
     if not host.endswith('/'):
         host += '/'
 
-    nsc_cookie = autologin(host, usr, pwd, otp)[1]
-    if nsc_cookie:
+    if nsc_cookie := autologin(host, usr, pwd, otp)[1]:
         t = Thread(target=selenium_login(nsc_cookie))
         t.start()
         threads.append(t)

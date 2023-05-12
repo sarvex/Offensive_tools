@@ -24,8 +24,8 @@ class DumpMethod(IDumpMethod):
 
     def get_commands(self, dump_path=None, dump_name=None, no_powershell=False):
     	#cmd_command = """rundll32 {},Main {}""".format(self.postdump.get_remote_path(), self.dump_name)
-        cmd_command = """cd {} && {} -o {}""".format(self.dump_path, self.postdump.get_remote_path(), self.dump_name)
-        pwsh_command = """cd {} && {} -o {}""".format(self.dump_path, self.postdump.get_remote_path(), self.dump_name)
+        cmd_command = f"""cd {self.dump_path} && {self.postdump.get_remote_path()} -o {self.dump_name}"""
+        pwsh_command = f"""cd {self.dump_path} && {self.postdump.get_remote_path()} -o {self.dump_name}"""
 
         return {
             "cmd": cmd_command,

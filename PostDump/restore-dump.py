@@ -10,29 +10,21 @@ def parse_args():
     parser.add_argument('--output', help='output file')
     parser.add_argument('--type', help='restore, decrypt, both')
     parser.add_argument('--key', help='XOR encryption key [default 0x6f]')
-    
+
     args = parser.parse_args()
 
-    if args.key is None:
-        key = 0x6f
-    else:
-        key = args.key
-
-    if args.output is None:
-        output = args.infile
-    else:
-        output = Path(args.output)
- 
+    key = 0x6f if args.key is None else args.key
+    output = args.infile if args.output is None else Path(args.output)
     return (Path(args.infile), output, args.type, key)
 
 
 
 def validate_args(infile, action):
     if not infile.is_file():
-        sys.exit('"{}" is not a file.'.format(infile))
+        sys.exit(f'"{infile}" is not a file.')
 
-    if action != "restore" and action != "decrypt" and action != "both":
-        sys.exit('"{}" is not a good type'.format(action))
+    if action not in ["restore", "decrypt", "both"]:
+        sys.exit(f'"{action}" is not a good type')
 
 
 def decrypt(file1_b):
@@ -70,19 +62,25 @@ if __name__ == '__main__':
 
     if type == "restore":
         data = restoreSig(file1_b)
-        open(output+'.restored', 'wb').write(data)
-        print("[*] %s decrypted!\n[*] Saved to \033[1;33m%s\033[1;m."%(infile, output+'.restored'))
+        open(f'{output}.restored', 'wb').write(data)
+        print(
+            "[*] %s decrypted!\n[*] Saved to \033[1;33m%s\033[1;m."
+            % (infile, f'{output}.restored')
+        )
 
     elif type == "decrypt":
         data = decrypt(file1_b)
-        open(output+'.decrypted', 'wb').write(data)
-        print("[*] %s signature restored!\n[*] Saved to \033[1;33m%s\033[1;m."%(infile, output+'.decrypted'))
-    
+        open(f'{output}.decrypted', 'wb').write(data)
+        print(
+            "[*] %s signature restored!\n[*] Saved to \033[1;33m%s\033[1;m."
+            % (infile, f'{output}.decrypted')
+        )
+
     else:
         data = decrypt(file1_b)
-        print("[*] %s decrypted."%(infile))
+        print(f"[*] {infile} decrypted.")
         data2 = restoreSig(data)
-        open(output+'.both', 'wb').write(data2)
-        print("[*] %s signatured restored."%(infile))
-        print("[*] %s Saved to \033[1;33m%s\033[1;m."%(infile, output+'.both'))
+        open(f'{output}.both', 'wb').write(data2)
+        print(f"[*] {infile} signatured restored.")
+        print("[*] %s Saved to \033[1;33m%s\033[1;m." % (infile, f'{output}.both'))
 

